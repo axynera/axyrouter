@@ -109,3 +109,45 @@ Streaming tidak dibuffer sampai selesai. Router meneruskan `ReadableStream` dari
 ## Notes
 
 Adapter bawaan mengharapkan backend provider memiliki API OpenAI Chat Completions. Provider dengan API native berbeda dapat diberi adapter khusus tanpa mengubah nama AI publik.
+
+## Custom Axynera JSON
+
+Untuk konfigurasi yang lebih bebas, gunakan `AXY_CONFIG`. Contoh:
+
+    {
+      "name": "Axynera AI",
+      "developer": "Axynera",
+      "website": "https://your-domain.example",
+      "version": "1.0.0",
+      "defaultModel": "Axynity",
+      "heartbeat": true
+    }
+
+Field ini dapat dipakai untuk identitas gateway, developer, versi, dan default model tanpa mengubah source code.
+
+## Custom Developer / Branding
+
+Nama developer dan identitas publik tidak dikunci. Ubah `AXY_CONFIG.developer`, `AXY_CONFIG.name`, dan `AXY_CONFIG.version` sesuai branding sendiri.
+
+## Heartbeat
+
+AxyRouter menyediakan konfigurasi heartbeat di `AXY_HEARTBEAT` untuk health monitoring:
+
+    {
+      "enabled": true,
+      "interval": 30000
+    }
+
+`GET /health` mengembalikan konfigurasi heartbeat saat aktif. Heartbeat sebaiknya dipakai hanya jika memang dibutuhkan monitoring; jangan membuat ping terlalu sering karena Edge function tetap akan menerima request.
+
+## Gateway API keys
+
+Jika ingin membatasi akses client, tambahkan `AXY_KEYS`:
+
+    ["Axy-client-key-1", "Axy-client-key-2"]
+
+Client mengirim:
+
+    Authorization: Bearer Axy-client-key-1
+
+Jika `AXY_KEYS` kosong, authentication gateway dinonaktifkan.
