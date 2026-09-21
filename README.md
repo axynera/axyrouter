@@ -1,53 +1,111 @@
-# AxyRouter
+# AxyRouter ⚡
 
-Lightweight Hono + Netlify Edge AI gateway.
+Ultra-lightweight Hono + Netlify Edge AI gateway.
 
 ## Features
-- Custom public model names / aliases
-- OpenAI-compatible /v1/chat/completions
-- /v1/models
-- Anthropic-style /v1/messages endpoint
-- SSE streaming passthrough
-- Multiple credentials per provider
-- Provider/model separation
-- No provider keys hard-coded in source
-- Designed for Netlify Edge
+- OpenAI SDK compatible: /v1/chat/completions
+- Anthropic SDK compatible: /v1/messages
+- Custom public model aliases
+- Multiple provider credentials
+- Direct SSE ReadableStream passthrough
+- Custom JSON configuration
+- /v1/models and /health
 
-## Environment
+## Add Provider
 
-AXY_PROVIDERS:
-{
-  "deepseek": {
-    "baseUrl": "https://api.example.com/v1",
-    "credentials": [
-      {"apiKey":"KEY_1","enabled":true},
-      {"apiKey":"KEY_2","enabled":true}
-    ]
-  }
-}
+Di Netlify buka Project configuration → Environment variables.
 
-AXY_MODELS:
-{
-  "Axynity X-Dev": {
-    "name":"Axynity X-Dev",
-    "provider":"deepseek",
-    "model":"deepseek-chat",
-    "credentials":[0,1]
-  }
-}
+Tambahkan variable `AXY_PROVIDERS` dengan JSON:
 
-A client can request:
-POST /v1/chat/completions
-{"model":"Axynity X-Dev","messages":[{"role":"user","content":"Hello"}],"stream":true}
+    {
+      "deepseek": {
+        "baseUrl": "https://api.deepseek.com/v1",
+        "credentials": [
+          {"apiKey": "KEY_1", "enabled": true},
+          {"apiKey": "KEY_2", "enabled": true}
+        ]
+      },
+      "qwen": {
+        "baseUrl": "https://your-provider.example/v1",
+        "credentials": [{"apiKey": "KEY_QWEN", "enabled": true}]
+      }
+    }
 
-The public alias stays the same even when the upstream model changes.
+Provider harus menyediakan endpoint OpenAI-compatible `/chat/completions` untuk adapter bawaan.
 
-## SDK compatibility
+## Custom AI name / model alias
 
-OpenAI SDK can use:
-baseURL = https://YOUR-SITE/v1
+Tambahkan `AXY_MODELS`:
 
-Anthropic-compatible clients can use:
-baseURL = https://YOUR-SITE/v1
+    {
+      "Axynity X-Dev": {
+        "name": "Axynity X-Dev",
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "credentials": [0, 1]
+      },
+      "Axynity": {
+        "name": "Axynity",
+        "provider": "qwen",
+        "model": "qwen-model",
+        "credentials": [0]
+      }
+    }
 
-For provider-specific request/response differences, add adapters in api.ts rather than exposing upstream model names.
+Client cukup mengirim `Axynity X-Dev`. Model asli provider tidak perlu diketahui client.
+
+Untuk memakai credential tertentu, isi `credentials` dengan index. Credential dengan `enabled: false` akan dilewati.
+
+## OpenAI SDK
+
+Install `openai`, lalu gunakan baseURL:
+
+    import OpenAI from "openai";
+    const client = new OpenAI({
+      apiKey: "AXY-your-key",
+      baseURL: "https://YOUR-SITE.netlify.app/v1"
+    });
+    const stream = await client.chat.completions.create({
+      model: "Axynity X-Dev",
+      messages: [{role: "user", content: "Hello"}],
+      stream: true
+    });
+    for await (const chunk of stream) {
+      process.stdout.write(chunk.choices[0]?.delta?.content || "");
+    }
+
+## Anthropic SDK
+
+Install `@anthropic-ai/sdk`, lalu gunakan baseURL yang sama:
+
+    import Anthropic from "@anthropic-ai/sdk";
+    const client = new Anthropic({
+      apiKey: "AXY-your-key",
+      baseURL: "https://YOUR-SITE.netlify.app/v1"
+    });
+    const stream = await client.messages.create({
+      model: "Axynity X-Dev",
+      max_tokens: 4096,
+      messages: [{role: "user", content: "Buatkan kode TypeScript"}],
+      stream: true
+    });
+    for await (const event of stream) {
+      console.log(event);
+    }
+
+## Endpoints
+
+- `GET /health`
+- `GET /v1/models`
+- `POST /v1/chat/completions` — OpenAI
+- `POST /v1/messages` — Anthropic
+
+## Speed
+
+Streaming tidak dibuffer sampai selesai. Router meneruskan `ReadableStream` dari upstream ke client sehingga jalur utamanya:
+
+    SDK → Netlify Edge → Hono → Provider → ReadableStream → SDK
+
+## Notes
+
+Adapter bawaan mengharapkan backend provider memiliki API OpenAI Chat Completions. Provider dengan API native berbeda dapat diberi adapter khusus tanpa mengubah nama AI publik.
