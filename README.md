@@ -15,21 +15,20 @@ Ultra-lightweight Hono + Netlify Edge AI gateway.
 
 Di Netlify buka Project configuration → Environment variables.
 
-Tambahkan variable `AXY_PROVIDERS` dengan JSON:
+Provider sepenuhnya generic. Tidak ada DeepSeek, Qwen, OpenAI, atau provider tertentu yang di-hardcode.
 
-    {
-      "deepseek": {
-        "baseUrl": "https://api.deepseek.com/v1",
-        "credentials": [
-          {"apiKey": "KEY_1", "enabled": true},
-          {"apiKey": "KEY_2", "enabled": true}
-        ]
-      },
-      "qwen": {
-        "baseUrl": "https://your-provider.example/v1",
-        "credentials": [{"apiKey": "KEY_QWEN", "enabled": true}]
-      }
-    }
+Contoh provider bebas:
+
+    AXY_PROVIDER_PROVIDER_A_BASE_URL=https://provider-a.example/v1
+    AXY_PROVIDER_PROVIDER_A_KEY_1=KEY_1
+    AXY_PROVIDER_PROVIDER_A_KEY_2=KEY_2
+
+    AXY_PROVIDER_PROVIDER_B_BASE_URL=https://provider-b.example/v1
+    AXY_PROVIDER_PROVIDER_B_KEY_1=KEY_1
+
+Nama provider berasal dari bagian setelah `AXY_PROVIDER_`. Kamu bisa menambahkan provider sebanyak yang diperlukan tanpa mengubah source code.
+
+Setiap provider bisa memiliki beberapa credential. Credential aktif dipilih dengan round-robin per model/provider.
 
 Provider harus menyediakan endpoint OpenAI-compatible `/chat/completions` untuk adapter bawaan.
 
@@ -40,15 +39,14 @@ Tambahkan `AXY_MODELS`:
     {
       "Axynity X-Dev": {
         "name": "Axynity X-Dev",
-        "provider": "deepseek",
-        "model": "deepseek-chat",
+        "provider": "PROVIDER_A",
+        "model": "backend-model",
         "credentials": [0, 1]
       },
       "Axynity": {
         "name": "Axynity",
-        "provider": "qwen",
-        "model": "qwen-model",
-        "credentials": [0]
+        "provider": "PROVIDER_B",
+        "model": "backend-model"
       }
     }
 
