@@ -12,6 +12,16 @@ const heartbeat=()=>envJson<any>("AXY_HEARTBEAT",{enabled:true,interval:30000});
 const autoContinue=()=>envJson<any>("AXY_AUTO_CONTINUE",{enabled:false,maxRounds:3,prompt:"Continue exactly from where you stopped. Do not repeat previous content."});
 function authOk(req:Request){const keys=envJson<string[]>("AXY_KEYS",[]);return !keys.length||keys.includes((req.headers.get("authorization")||"").replace(/^Bearer\\s+/i,""));}
 const models=()=>envJson<Record<string,ModelConfig>>("AXY_MODELS",{});
+const rrState=new Map<string,number>();
+function nextCredential(cfg:ModelConfig,p:Provider){
+ const list=cfg.credentials?.map(i=>p.credentials[i]).filter(Boolean)||p.credentials;
+ const enabled=list.filter(x=>x.enabled!==false&&x.apiKey);
+ if(!enabled.length)throw new Error("No enabled credentials");
+ const key=`${cfg.provider}:${cfg.name}`;
+ const index=(rrState.get(key)??0)%enabled.length;
+ rrState.set(key,index+1);
+ return enabled[index];
+}
 function resolve(body:any){const cfg=models()[body.model];if(!cfg)throw new Error(`Unknown model: ${body.model}`);const p=providers()[cfg.provider];if(!p)throw new Error(`Provider not configured: ${cfg.provider}`);const list=cfg.credentials?.map(i=>p.credentials[i]).filter(Boolean)||p.credentials;const c=list.filter(x=>x.enabled!==false&&x.apiKey)[Math.floor(Math.random()*list.filter(x=>x.enabled!==false&&x.apiKey).length)];if(!c)throw new Error("No enabled credentials");return{cfg,c,url:(c.baseUrl||p.baseUrl).replace(/\/$/,"")+"/chat/completions"}}
 function err(message:string,status=400,type="invalid_request_error"){return json({error:{message,type}},status)}
 function aerr(message:string,status=400,type="invalid_request_error"){return json({type:"error",error:{type,message}},status)}
