@@ -1,0 +1,9 @@
+{
+  "name":"axyrouter",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "scripts":{"dev":"netlify dev","build":"echo "Edge Functions are deployed by Netlify""},
+  "dependencies":{"hono":"^4.9.0"},
+  "devDependencies":{"netlify-cli":"^23.0.0","typescript":"^5.0.0"}
+}
