@@ -7,6 +7,16 @@ const app=new Hono();
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json"}});
 function envJson<T>(key:string,fallback:T):T{try{return JSON.parse(Netlify.env.get(key)||"") as T}catch{return fallback}}
 const providers=()=>envJson<Record<string,Provider>>("AXY_PROVIDERS",{});
+
+function envProviders(){
+ const p=providers();
+ for(const name of Object.keys(p)){
+  const keyPrefix=`AXY_PROVIDER_${name.toUpperCase().replace(/[^A-Z0-9]+/g,"_")}_KEY_`;
+  const keys=Object.keys(Netlify.env.toObject()).filter(k=>k.startsWith(keyPrefix)).sort().map(k=>Netlify.env.get(k)).filter(Boolean) as string[];
+  if(keys.length)p[name].credentials=keys.map(apiKey=>({apiKey,enabled:true}));
+ }
+ return p;
+}
 const custom=()=>envJson<any>("AXY_CONFIG",{});
 const heartbeat=()=>envJson<any>("AXY_HEARTBEAT",{enabled:true,interval:30000});
 const autoContinue=()=>envJson<any>("AXY_AUTO_CONTINUE",{enabled:false,maxRounds:3,prompt:"Continue exactly from where you stopped. Do not repeat previous content."});
@@ -22,7 +32,7 @@ function nextCredential(cfg:ModelConfig,p:Provider){
  rrState.set(key,index+1);
  return enabled[index];
 }
-function resolve(body:any){const cfg=models()[body.model];if(!cfg)throw new Error(`Unknown model: ${body.model}`);const p=providers()[cfg.provider];if(!p)throw new Error(`Provider not configured: ${cfg.provider}`);const list=cfg.credentials?.map(i=>p.credentials[i]).filter(Boolean)||p.credentials;const c=list.filter(x=>x.enabled!==false&&x.apiKey)[Math.floor(Math.random()*list.filter(x=>x.enabled!==false&&x.apiKey).length)];if(!c)throw new Error("No enabled credentials");return{cfg,c,url:(c.baseUrl||p.baseUrl).replace(/\/$/,"")+"/chat/completions"}}
+function resolve(body:any){const cfg=models()[body.model];if(!cfg)throw new Error(`Unknown model: ${body.model}`);const p=envProviders()[cfg.provider];if(!p)throw new Error(`Provider not configured: ${cfg.provider}`);const list=cfg.credentials?.map(i=>p.credentials[i]).filter(Boolean)||p.credentials;const c=list.filter(x=>x.enabled!==false&&x.apiKey)[Math.floor(Math.random()*list.filter(x=>x.enabled!==false&&x.apiKey).length)];if(!c)throw new Error("No enabled credentials");return{cfg,c,url:(c.baseUrl||p.baseUrl).replace(/\/$/,"")+"/chat/completions"}}
 function err(message:string,status=400,type="invalid_request_error"){return json({error:{message,type}},status)}
 function aerr(message:string,status=400,type="invalid_request_error"){return json({type:"error",error:{type,message}},status)}
 async function call(body:any){
