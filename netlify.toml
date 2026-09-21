@@ -1,0 +1,17 @@
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/edge-functions"
+
+[[edge_functions]]
+  path = "/api/*"
+  function = "api"
+
+[[edge_functions]]
+  path = "/v1/*"
+  function = "api"
+
+[[edge_functions]]
+  path = "/health"
+  function = "api"
