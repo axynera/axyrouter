@@ -18,7 +18,7 @@ function envProviders(){
  }
  for(const name of names){
   const id=name.toUpperCase().replace(/[^A-Z0-9]+/g,"_");
-  const baseUrl=Netlify.env.get(`AXY_PROVIDER_${id}_BASE_URL");
+  const baseUrl=Netlify.env.get(`AXY_PROVIDER_${id}_BASE_URL`);
   const keys=Object.keys(env).filter(k=>k.startsWith(`AXY_PROVIDER_${id}_KEY_`)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(k=>env[k]).filter(Boolean) as string[];
   if(!p[name])p[name]={baseUrl:baseUrl||"",credentials:[]};
   if(baseUrl)p[name].baseUrl=baseUrl;
@@ -41,7 +41,16 @@ function nextCredential(cfg:ModelConfig,p:Provider){
  rrState.set(key,index+1);
  return enabled[index];
 }
-function resolve(body:any){const cfg=models()[body.model];if(!cfg)throw new Error(`Unknown model: ${body.model}`);const p=envProviders()[cfg.provider];if(!p)throw new Error(`Provider not configured: ${cfg.provider}`);const list=cfg.credentials?.map(i=>p.credentials[i]).filter(Boolean)||p.credentials;const c=list.filter(x=>x.enabled!==false&&x.apiKey)[Math.floor(Math.random()*list.filter(x=>x.enabled!==false&&x.apiKey).length)];if(!c)throw new Error("No enabled credentials");return{cfg,c,url:(c.baseUrl||p.baseUrl).replace(/\/$/,"")+"/chat/completions"}}
+function resolve(body:any){
+ const cfg=models()[body.model];
+ if(!cfg)throw new Error(`Unknown model: ${body.model}`);
+ const p=envProviders()[cfg.provider];
+ if(!p)throw new Error(`Provider not configured: ${cfg.provider}`);
+ const c=nextCredential(cfg,p);
+ const base=(c.baseUrl||p.baseUrl||"").replace(/\/$/,"");
+ if(!base)throw new Error(`Provider base URL not configured: ${cfg.provider}`);
+ return{cfg,c,url:base+"/chat/completions"};
+}
 function err(message:string,status=400,type="invalid_request_error"){return json({error:{message,type}},status)}
 function aerr(message:string,status=400,type="invalid_request_error"){return json({type:"error",error:{type,message}},status)}
 async function call(body:any){
