@@ -2,7 +2,7 @@ import { Hono } from "hono";
 
 type Credential={apiKey:string;baseUrl?:string;enabled?:boolean};
 type Provider={baseUrl:string;credentials:Credential[]};
-type ModelConfig={name:string;provider:string;model:string;credentials?:number[];autoContinue?:boolean;maxContinue?:number};
+type ModelConfig={name:string;displayName?:string;provider:string;model:string;credentials?:number[];autoContinue?:boolean;maxContinue?:number};
 const app=new Hono();
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json"}});
 function envJson<T>(key:string,fallback:T):T{try{return JSON.parse(Netlify.env.get(key)||"") as T}catch{return fallback}}
@@ -77,7 +77,7 @@ function toAnthropic(d:any,model:string){const x=d?.choices?.[0],u=d?.usage;retu
 function streamHeaders(h:Headers){h.set("content-type","text/event-stream; charset=utf-8");h.set("cache-control","no-cache, no-transform");h.delete("content-length");return h}
 
 app.get("/health",c=>c.json({ok:true,service:custom().name||"AxyRouter",runtime:"Netlify Edge",framework:"Hono",heartbeat:heartbeat()}));
-app.get("/v1/models",c=>c.json({object:"list",data:Object.values(models()).map((m,i)=>({id:m.name,object:"model",created:0,owned_by:custom().developer||"Axynera",index:i}))}));
+app.get("/v1/models",c=>c.json({object:"list",data:Object.values(models()).map((m,i)=>({id:m.name,object:"model",created:0,owned_by:custom().developer||"Axynera",display_name:m.displayName||m.name,index:i}))}));
 
 app.post("/v1/chat/completions",async c=>{try{if(!authOk(c.req.raw))return err("Invalid API key",401,"authentication_error");const b=await c.req.json();
  if(b.stream && (models()[b.model]?.autoContinue??autoContinue().enabled)) return err("Auto-continue currently requires non-streaming mode",400,"invalid_request_error");
