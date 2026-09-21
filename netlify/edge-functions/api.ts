@@ -10,9 +10,18 @@ const providers=()=>envJson<Record<string,Provider>>("AXY_PROVIDERS",{});
 
 function envProviders(){
  const p=providers();
- for(const name of Object.keys(p)){
-  const keyPrefix=`AXY_PROVIDER_${name.toUpperCase().replace(/[^A-Z0-9]+/g,"_")}_KEY_`;
-  const keys=Object.keys(Netlify.env.toObject()).filter(k=>k.startsWith(keyPrefix)).sort().map(k=>Netlify.env.get(k)).filter(Boolean) as string[];
+ const env=Netlify.env.toObject();
+ const names=new Set(Object.keys(p));
+ for(const k of Object.keys(env)){
+  const m=k.match(/^AXY_PROVIDER_([A-Z0-9_]+)_(?:BASE_URL|KEY_\\d+)$/);
+  if(m)names.add(m[1].toLowerCase());
+ }
+ for(const name of names){
+  const id=name.toUpperCase().replace(/[^A-Z0-9]+/g,"_");
+  const baseUrl=Netlify.env.get(`AXY_PROVIDER_${id}_BASE_URL");
+  const keys=Object.keys(env).filter(k=>k.startsWith(`AXY_PROVIDER_${id}_KEY_`)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(k=>env[k]).filter(Boolean) as string[];
+  if(!p[name])p[name]={baseUrl:baseUrl||"",credentials:[]};
+  if(baseUrl)p[name].baseUrl=baseUrl;
   if(keys.length)p[name].credentials=keys.map(apiKey=>({apiKey,enabled:true}));
  }
  return p;
